@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+<meta charset="UTF-8">
+
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<title>What To Watch Next | MovieMood</title>
+
+<link rel="stylesheet" href="css/style.css">
+
+<script>
+document.documentElement.setAttribute(
+  'data-theme',
+  localStorage.getItem('theme') || 'light'
+);
+</script>
+
+</head>
+
+
+<body>
+
+
+<div id="header"></div>
+
+
+<main class="container">
+
+
+  <!-- =========================================
+       PAGE TITLE
+       ========================================= -->
+
+  <h2>What Should I Watch Next?</h2>
+
+  <p class="muted">
+    Select a movie you recently completed and MovieMood
+    will find similar movies you may enjoy next.
+  </p>
+
+
+  <!-- =========================================
+       SELECT COMPLETED MOVIE
+       ========================================= -->
+
+  <div class="watch-next-box">
+
+    <label for="completedMovie">
+
+      I recently completed:
+
+    </label>
+
+
+    <select id="completedMovie">
+
+      <option value="">
+        Select a movie
+      </option>
+
+    </select>
+
+
+    <button
+      class="btn"
+      id="findNext"
+      type="button"
+    >
+
+      Find My Next Movie
+
+    </button>
+
+  </div>
+
+
+  <!-- =========================================
+       SELECTED MOVIE INFORMATION
+       ========================================= -->
+
+  <div
+    id="selectedMovie"
+    class="selected-movie"
+  ></div>
+
+
+  <!-- =========================================
+       RESULT TITLE
+       ========================================= -->
+
+  <h3 id="resultTitle"></h3>
+
+
+  <!-- =========================================
+       RESULTS
+       ========================================= -->
+
+  <div
+    class="grid"
+    id="nextResults"
+  ></div>
+
+
+</main>
+
+
+<div id="footer"></div>
+
+
+<script src="js/data.js"></script>
+
+<script src="js/app.js"></script>
+
+
+<script>
+
+
+/* =========================================================
+   GET MOVIES
+   ========================================================= */
+
+var movies = getMovies();
+
+
+/* =========================================================
+   MOVIE DROPDOWN
+   ========================================================= */
+
+var movieSelect =
+  document.getElementById('completedMovie');
+var lastCompleted =
+  localStorage.getItem('mm_last_completed');
+
+/*
+   Sort movies alphabetically
+*/
+
+movies
+  .slice()
+  .sort(function(a, b) {
+
+    return String(a.title || '')
+      .localeCompare(
+        String(b.title || '')
+      );
+
+  })
+  .forEach(function(movie) {
+
+    var option =
+      document.createElement('option');
+
+    option.value = movie.id;
+
+    option.textContent =
+      movie.title +
+      ' (' +
+      movie.year +
+      ')';
+
+    movieSelect.appendChild(option);
+
+  });
+
+
+
+/* =========================================================
+   FIND MOVIE
+   ========================================================= */
+
+function findMovieById(id) {
+
+  for (var i = 0; i < movies.length; i++) {
+
+    if (
+      Number(movies[i].id) ===
+      Number(id)
+    ) {
+
+      return movies[i];
+
+    }
+
+  }
+
+  return null;
+
+}
+
+
+
+/* =========================================================
+   CHECK SIMILARITY
+   ========================================================= */
+
+function calculateSimilarity(movie, completed) {
+
+  var score = 0;
+
+
+  /* -----------------------------------------
+     SAME GENRE
+     ----------------------------------------- */
+
+  if (
+    String(movie.genre || '')
+      .toLowerCase() ===
+    String(completed.genre || '')
+      .toLowerCase()
+  ) {
+
+    score += 4;
+
+  }
+
+
+  /* -----------------------------------------
+     SAME MOOD
+     ----------------------------------------- */
+
+  if (
+    String(movie.mood || '')
+      .toLowerCase() ===
+    String(completed.mood || '')
+      .toLowerCase()
+  ) {
+
+    score += 3;
+
+  }
+
+
+  /* -----------------------------------------
+     SAME INDUSTRY
+     ----------------------------------------- */
+
+  if (
+    String(movie.industry || '')
+      .toLowerCase() ===
+    String(completed.industry || '')
+      .toLowerCase()
+  ) {
+
+    score += 2;
+
+  }
+
+
+  /* -----------------------------------------
+     SAME LANGUAGE
+     ----------------------------------------- */
+
+  if (
+    String(movie.language || '')
+      .toLowerCase() ===
+    String(completed.language || '')
+      .toLowerCase()
+  ) {
+
+    score += 2;
+
+  }
+
+
+  /* -----------------------------------------
+     SAME HERO
+     ----------------------------------------- */
+
+  if (
+    completed.hero &&
+    movie.hero &&
+    String(movie.hero)
+      .toLowerCase()
+      .indexOf(
+        String(completed.hero)
+          .toLowerCase()
+      ) !== -1
+  ) {
+
+    score += 2;
+
+  }
+
+
+  /* -----------------------------------------
+     SAME HEROINE
+     ----------------------------------------- */
+
+  if (
+    completed.heroine &&
+    movie.heroine &&
+    String(movie.heroine)
+      .toLowerCase()
+      .indexOf(
+        String(completed.heroine)
+          .toLowerCase()
+      ) !== -1
+  ) {
+
+    score += 2;
+
+  }
+
+
+  /* -----------------------------------------
+     GOOD RATING
+     ----------------------------------------- */
+
+  if (
+    Number(movie.rating || 0) >= 7
+  ) {
+
+    score += 1;
+
+  }
+
+
+  return score;
+
+}
+
+
+
+/* =========================================================
+   SHOW SELECTED MOVIE
+   ========================================================= */
+
+function showSelectedMovie(movie) {
+
+  if (!movie) {
+
+    document.getElementById(
+      'selectedMovie'
+    ).innerHTML = '';
+
+    return;
+
+  }
+
+
+  document.getElementById(
+    'selectedMovie'
+  ).innerHTML =
+
+    '<div class="completed-card">' +
+
+      '<div class="completed-letter">' +
+
+        esc(
+          String(movie.title || 'M')
+            .charAt(0)
+            .toUpperCase()
+        ) +
+
+      '</div>' +
+
+      '<div>' +
+
+        '<h3>' +
+
+          esc(movie.title) +
+
+        '</h3>' +
+
+        '<p>' +
+
+          esc(movie.genre || 'Movie') +
+
+          ' • ' +
+
+          esc(movie.year || '') +
+
+        '</p>' +
+
+        '<p>' +
+
+          '⭐ ' +
+
+          esc(movie.rating || 'N/A') +
+
+          ' &nbsp; ' +
+
+          '<span class="tag">' +
+
+            esc(movie.mood || 'Relaxed') +
+
+          '</span>' +
+
+        '</p>' +
+
+      '</div>' +
+
+    '</div>';
+
+}
+
+
+
+/* =========================================================
+   FIND NEXT MOVIES
+   ========================================================= */
+
+function findNextMovies() {
+
+
+  var selectedId =
+    movieSelect.value;
+
+
+  if (!selectedId) {
+
+    alert(
+      'Please select a movie you recently completed.'
+    );
+
+    return;
+
+  }
+
+
+  var completed =
+    findMovieById(selectedId);
+
+
+  if (!completed) {
+
+    return;
+
+  }
+
+
+  /* Show completed movie */
+
+  showSelectedMovie(completed);
+
+
+  /* -----------------------------------------
+     CALCULATE SIMILAR MOVIES
+     ----------------------------------------- */
+
+  var recommendations = [];
+
+
+  movies.forEach(function(movie) {
+
+
+    /*
+       Do not recommend the movie
+       that was already completed.
+    */
+
+    if (
+      Number(movie.id) ===
+      Number(completed.id)
+    ) {
+
+      return;
+
+    }
+
+
+    var score =
+      calculateSimilarity(
+        movie,
+        completed
+      );
+
+
+    if (score > 0) {
+
+      recommendations.push({
+
+        movie: movie,
+
+        score: score
+
+      });
+
+    }
+
+  });
+
+
+
+  /* -----------------------------------------
+     SORT BY SIMILARITY
+     ----------------------------------------- */
+
+  recommendations.sort(
+    function(a, b) {
+
+
+      if (
+        b.score !== a.score
+      ) {
+
+        return b.score -
+               a.score;
+
+      }
+
+
+      return (
+
+        Number(b.movie.rating || 0) -
+
+        Number(a.movie.rating || 0)
+
+      );
+
+    }
+  );
+
+
+
+  /* -----------------------------------------
+     GET TOP 12
+     ----------------------------------------- */
+
+  var results =
+    recommendations
+      .slice(0, 12)
+      .map(function(item) {
+
+        return item.movie;
+
+      });
+
+
+
+  /* -----------------------------------------
+     TITLE
+     ----------------------------------------- */
+
+  document.getElementById(
+    'resultTitle'
+  ).textContent =
+
+    'Because you watched ' +
+    completed.title +
+    '...';
+
+
+
+  /* -----------------------------------------
+     DISPLAY RESULTS
+     ----------------------------------------- */
+
+  if (results.length) {
+
+    document.getElementById(
+      'nextResults'
+    ).innerHTML =
+
+      results
+        .map(movieCard)
+        .join('');
+
+
+  } else {
+
+    document.getElementById(
+      'nextResults'
+    ).innerHTML =
+
+      '<div class="empty-state">' +
+
+        '<h3>No similar movies found</h3>' +
+
+        '<p>' +
+
+        'Try selecting another completed movie.'
+
+        + '</p>' +
+
+      '</div>';
+
+  }
+
+}
+
+
+
+/* =========================================================
+   BUTTON
+   ========================================================= */
+
+document
+  .getElementById('findNext')
+  .addEventListener(
+    'click',
+    findNextMovies
+  );
+
+  /* =========================================================
+   AUTOMATICALLY SELECT LAST COMPLETED MOVIE
+   ========================================================= */
+
+var movieFromDetails =
+  new URLSearchParams(location.search)
+    .get('id');
+
+var movieToSelect =
+  movieFromDetails ||
+  lastCompleted;
+
+
+if (movieToSelect) {
+
+  movieSelect.value =
+    movieToSelect;
+
+  var completedMovie =
+    findMovieById(movieToSelect);
+
+  if (completedMovie) {
+
+    showSelectedMovie(
+      completedMovie
+    );
+
+    findNextMovies();
+
+  }
+
+}
+
+</script>
+
+
+
+<style>
+
+
+/* =========================================
+   WATCH NEXT BOX
+   ========================================= */
+
+.watch-next-box {
+
+  background: #ffffff;
+
+  border-left: 5px solid #d99a00;
+
+  border-radius: 12px;
+
+  padding: 25px;
+
+  margin-top: 25px;
+
+  margin-bottom: 25px;
+
+  box-shadow:
+    0 5px 18px rgba(0,0,0,0.08);
+
+}
+
+
+.watch-next-box label {
+
+  display: block;
+
+  font-weight: 700;
+
+  margin-bottom: 10px;
+
+}
+
+
+.watch-next-box select {
+
+  width: 100%;
+
+  max-width: 600px;
+
+  padding: 13px;
+
+  border: 1px solid #d8c8b8;
+
+  border-radius: 8px;
+
+  font-size: 16px;
+
+  background: #fffaf2;
+
+  margin-bottom: 15px;
+
+}
+
+
+.watch-next-box .btn {
+
+  display: block;
+
+}
+
+
+
+/* =========================================
+   COMPLETED MOVIE
+   ========================================= */
+
+.completed-card {
+
+  display: flex;
+
+  align-items: center;
+
+  gap: 20px;
+
+  background: #fff8df;
+
+  border-radius: 12px;
+
+  padding: 20px;
+
+  margin-bottom: 25px;
+
+  border: 1px solid #ead7a5;
+
+}
+
+
+.completed-letter {
+
+  width: 80px;
+
+  height: 80px;
+
+  flex-shrink: 0;
+
+  border-radius: 50%;
+
+  background: #4b2924;
+
+  color: #ffffff;
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: center;
+
+  font-size: 40px;
+
+  font-weight: 800;
+
+}
+
+
+.completed-card h3 {
+
+  margin: 0 0 8px;
+
+}
+
+
+.completed-card p {
+
+  margin: 5px 0;
+
+}
+
+
+
+/* =========================================
+   RESULT TITLE
+   ========================================= */
+
+#resultTitle {
+
+  color: #4b2924;
+
+  margin-top: 25px;
+
+  margin-bottom: 18px;
+
+}
+
+
+
+/* =========================================
+   MOBILE
+   ========================================= */
+
+@media (max-width: 700px) {
+
+  .completed-card {
+
+    flex-direction: column;
+
+    text-align: center;
+
+  }
+
+
+  .watch-next-box {
+
+    padding: 18px;
+
+  }
+
+}
+
+</style>
+
+
+</body>
+
+</html>

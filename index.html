@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Home | MovieMood</title>
+<link rel="stylesheet" href="css/style.css">
+<script>document.documentElement.setAttribute('data-theme', localStorage.getItem('theme') || 'light');</script>
+</head>
+<body>
+<div id="header"></div>
+<main class="container" id="app">
+
+<section class="hero">
+  <h1>Find Movies That Match Your Mood</h1>
+  <p>Tell us how you feel, and we will pick the right movie for you.</p>
+  <div class="mood-buttons" id="moods"></div>
+</section>
+<h2>⭐ Top Rated</h2><div class="grid" id="top"></div>
+<h2>🆕 Latest Movies</h2><div class="grid" id="latest"></div>
+
+</main>
+<div id="footer"></div>
+<script src="js/data.js"></script>
+<script src="js/app.js"></script>
+<script>
+
+var movies = getMovies();
+var html = '';
+uniqueValues('mood').forEach(function (m) {
+  html += '<a class="btn" href="recommend.html?mood=' + encodeURIComponent(m) + '">' + esc(m) + '</a>';
+});
+html += '<a class="btn btn-alt" href="surprise.html">🎲 Surprise Me</a>';
+document.getElementById('moods').innerHTML = html;
+
+var byRating = movies.slice().sort(function (a, b) { return b.rating - a.rating; });
+var byYear = movies.slice().sort(function (a, b) { return b.year - a.year; });
+document.getElementById('top').innerHTML = byRating.slice(0, 4).map(movieCard).join('');
+document.getElementById('latest').innerHTML = byYear.slice(0, 4).map(movieCard).join('');
+
+</script>
+</body>
+</html>

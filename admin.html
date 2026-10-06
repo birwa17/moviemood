@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Admin Panel | MovieMood</title>
+<link rel="stylesheet" href="css/style.css">
+<script>document.documentElement.setAttribute('data-theme', localStorage.getItem('theme') || 'light');</script>
+</head>
+<body>
+<div id="header"></div>
+<main class="container" id="app">
+
+<h2>📊 Admin Panel</h2>
+<div class="stats" id="stats"></div>
+
+<h2 id="formTitle">➕ Add Movie</h2>
+<form id="movieForm" class="form-box wide" style="margin-left:0">
+  <input type="hidden" id="mid">
+  <label>Title *</label><input type="text" id="title" required>
+  <div class="two-col">
+    <div><label>Genre *</label><input type="text" id="genre" required></div>
+    <div><label>Mood * (Happy, Sad, Romantic...)</label><input type="text" id="mood" required></div>
+    <div><label>Industry *</label><input type="text" id="industry" required></div>
+    <div><label>Language *</label><input type="text" id="language" required></div>
+    <div><label>Hero</label><input type="text" id="hero"></div>
+    <div><label>Heroine</label><input type="text" id="heroine"></div>
+    <div><label>Director</label><input type="text" id="director"></div>
+    <div><label>Release year</label><input type="number" id="year" min="1900" max="2100" value="2024"></div>
+    <div><label>Rating (0-10)</label><input type="number" id="rating" step="0.1" min="0" max="10" value="7"></div>
+  </div>
+  <label>Poster image URL</label><input type="text" id="poster">
+  <label>Trailer embed URL (https://www.youtube.com/embed/VIDEO_ID)</label><input type="text" id="trailer">
+  <label>Description</label><textarea id="description" rows="4"></textarea>
+  <button class="btn" type="submit" id="saveBtn">Add Movie</button>
+  <button class="btn btn-alt" type="button" id="cancelBtn">Cancel</button>
+</form>
+
+<h2>🎬 Manage Movies</h2>
+<div class="table-wrap"><table class="data-table" id="movieTable"></table></div>
+<h2>👥 Manage Users</h2>
+<div class="table-wrap"><table class="data-table" id="userTable"></table></div>
+<h2>📝 Manage Reviews</h2>
+<div class="table-wrap"><table class="data-table" id="reviewTable"></table></div>
+
+</main>
+<div id="footer"></div>
+<script src="js/data.js"></script>
+<script src="js/app.js"></script>
+<script>
+
+var fields = ['title','genre','mood','industry','language','hero','heroine','director','year','rating','poster','trailer','description'];
+
+if (requireAdmin()) {
+  var me = currentUser();
+
+  function drawAll() {
+    var movies = getMovies(), users = getUsers(), reviews = getReviews();
+
+    var favTotal = 0, allFav = load('mm_fav', {});
+    for (var k in allFav) favTotal += allFav[k].length;
+    document.getElementById('stats').innerHTML =
+      '<div class="stat"><h3>' + movies.length + '</h3><p>Movies</p></div>' +
+      '<div class="stat"><h3>' + users.length + '</h3><p>Users</p></div>' +
+      '<div class="stat"><h3>' + reviews.length + '</h3><p>Reviews</p></div>' +
+      '<div class="stat"><h3>' + favTotal + '</h3><p>Watchlist items</p></div>';
+
+    var h = '<tr><th>ID</th><th>Title</th><th>Genre</th><th>Industry</th><th>Language</th><th>Year</th><th>Rating</th><th>Mood</th><th>Action</th></tr>';
+    movies.forEach(function (m) {
+      h += '<tr><td>' + m.id + '</td><td>' + esc(m.title) + '</td><td>' + esc(m.genre) + '</td><td>' + esc(m.industry) + '</td><td>' + esc(m.language) +
+        '</td><td>' + esc(m.year) + '</td><td>' + esc(m.rating) + '</td><td>' + esc(m.mood) + '</td><td>' +
+        '<button class="link-btn" onclick="editMovie(' + m.id + ')">Edit</button>' +
+        '<button class="link-btn" onclick="deleteMovie(' + m.id + ')">Delete</button></td></tr>';
+    });
+    document.getElementById('movieTable').innerHTML = h;
+
+    h = '<tr><th>Name</th><th>Email</th><th>Role</th><th>Action</th></tr>';
+    users.forEach(function (u) {
+      h += '<tr><td>' + esc(u.name) + '</td><td>' + esc(u.email) + '</td><td>' + u.role + '</td><td>';
+      if (u.id !== me.id) {
+        h += '<button class="link-btn" onclick="changeRole(' + u.id + ')">Make ' + (u.role == 'admin' ? 'User' : 'Admin') + '</button>' +
+             '<button class="link-btn" onclick="deleteUser(' + u.id + ')">Delete</button>';
+      }
+      h += '</td></tr>';
+    });
+    document.getElementById('userTable').innerHTML = h;
+
+    h = '<tr><th>Movie</th><th>User</th><th>Rating</th><th>Review</th><th>Date</th><th>Action</th></tr>';
+    reviews.forEach(function (r) {
+      var m = findMovie(r.movieId);
+      h += '<tr><td>' + esc(m ? m.title : '?') + '</td><td>' + esc(r.userName) + '</td><td>' + r.rating + '/10</td><td>' + esc(r.text) +
+        '</td><td>' + esc(r.date) + '</td><td><button class="link-btn" onclick="deleteReview(' + r.id + ')">Delete</button></td></tr>';
+    });
+    document.getElementById('reviewTable').innerHTML = h;
+  }
+
+  function resetForm() {
+    document.getElementById('movieForm').reset();
+    document.getElementById('mid').value = '';
+    document.getElementById('formTitle').textContent = '➕ Add Movie';
+    document.getElementById('saveBtn').textContent = 'Add Movie';
+  }
+
+  function editMovie(id) {
+    var m = findMovie(id);
+    fields.forEach(function (f) { document.getElementById(f).value = m[f]; });
+    document.getElementById('mid').value = id;
+    document.getElementById('formTitle').textContent = '✏️ Edit Movie';
+    document.getElementById('saveBtn').textContent = 'Update Movie';
+    window.scrollTo(0, 0);
+  }
+
+  function deleteMovie(id) {
+    if (!confirm('Delete this movie?')) return;
+    saveMovies(getMovies().filter(function (m) { return m.id !== id; }));
+    saveReviews(getReviews().filter(function (r) { return r.movieId !== id; }));
+    drawAll();
+  }
+
+  function changeRole(id) {
+    var users = getUsers();
+    users.forEach(function (u) { if (u.id === id) u.role = (u.role == 'admin') ? 'user' : 'admin'; });
+    saveUsers(users);
+    drawAll();
+  }
+
+  function deleteUser(id) {
+    if (!confirm('Delete this user?')) return;
+    saveUsers(getUsers().filter(function (u) { return u.id !== id; }));
+    saveReviews(getReviews().filter(function (r) { return r.userId !== id; }));
+    drawAll();
+  }
+
+  function deleteReview(id) {
+    if (!confirm('Delete this review?')) return;
+    saveReviews(getReviews().filter(function (r) { return r.id !== id; }));
+    drawAll();
+  }
+
+  document.getElementById('movieForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var movies = getMovies();
+    var data = {};
+    fields.forEach(function (f) { data[f] = document.getElementById(f).value.trim(); });
+    data.year = Number(data.year);
+    data.rating = Number(data.rating);
+
+    var editId = document.getElementById('mid').value;
+    if (editId) {
+      movies.forEach(function (m, i) { if (m.id === Number(editId)) { data.id = m.id; movies[i] = data; } });
+    } else {
+      var maxId = 0;
+      movies.forEach(function (m) { if (m.id > maxId) maxId = m.id; });
+      data.id = maxId + 1;
+      movies.push(data);
+    }
+    saveMovies(movies);
+    resetForm();
+    drawAll();
+  });
+  document.getElementById('cancelBtn').addEventListener('click', resetForm);
+  drawAll();
+}
+
+</script>
+</body>
+</html>

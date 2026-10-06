@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MovieMood Data Converter</title>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f5efe3;
+      color: #3b2416;
+      max-width: 800px;
+      margin: 50px auto;
+      padding: 20px;
+    }
+
+    .box {
+      background: white;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+    }
+
+    h1 {
+      margin-top: 0;
+    }
+
+    label {
+      display: block;
+      margin-top: 20px;
+      margin-bottom: 8px;
+      font-weight: bold;
+    }
+
+    input {
+      width: 100%;
+      padding: 10px;
+      box-sizing: border-box;
+    }
+
+    button {
+      margin-top: 25px;
+      padding: 12px 20px;
+      border: none;
+      border-radius: 7px;
+      background: #d4a017;
+      color: #3b2416;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #b8860b;
+      color: white;
+    }
+
+    #status {
+      margin-top: 20px;
+      padding: 15px;
+      background: #f5efe3;
+      border-radius: 8px;
+      white-space: pre-line;
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="box">
+
+  <h1>MovieMood Movie Data Converter</h1>
+
+  <p>
+    Select your Kaggle CSV files and this page will create
+    a MovieMood JavaScript dataset.
+  </p>
+
+  <label>1. Select movies_metadata.csv</label>
+  <input type="file" id="moviesFile" accept=".csv">
+
+  <label>2. Select credits.csv</label>
+  <input type="file" id="creditsFile" accept=".csv">
+
+  <br>
+
+  <button onclick="convertData()">
+    Create MovieMood Data
+  </button>
+
+  <div id="status">
+    Waiting for files...
+  </div>
+
+</div>
+
+
+<script>
+
+function parseCSV(text) {
+
+  var rows = [];
+  var row = [];
+  var value = "";
+  var insideQuotes = false;
+
+  for (var i = 0; i < text.length; i++) {
+
+    var char = text[i];
+    var next = text[i + 1];
+
+    if (char === '"' && insideQuotes && next === '"') {
+
+      value += '"';
+      i++;
+
+    } else if (char === '"') {
+
+      insideQuotes = !insideQuotes;
+
+    } else if (char === ',' && !insideQuotes) {
+
+      row.push(value);
+      value = "";
+
+    } else if ((char === '\n' || char === '\r') && !insideQuotes) {
+
+      if (char === '\r' && next === '\n') {
+        i++;
+      }
+
+      row.push(value);
+      value = "";
+
+      if (row.some(function(x) {
+        return x.trim() !== "";
+      })) {
+        rows.push(row);
+      }
+
+      row = [];
+
+    } else {
+
+      value += char;
+    }
+  }
+
+  if (value.length > 0 || row.length > 0) {
+
+    row.push(value);
+
+    if (row.some(function(x) {
+      return x.trim() !== "";
+    })) {
+      rows.push(row);
+    }
+  }
+
+  return rows;
+}
+
+
+function makeObjects(rows) {
+
+  if (!rows.length) {
+    return [];
+  }
+
+  var headers = rows[0].map(function(h) {
+    return h.trim();
+  });
+
+  var objects = [];
+
+  for (var i = 1; i < rows.length; i++) {
+
+    var obj = {};
+
+    for (var j = 0; j < headers.length; j++) {
+
+      obj[headers[j]] = rows[i][j] || "";
+    }
+
+    objects.push(obj);
+  }
+
+  return objects;
+}
+
+
+function cleanText(value) {
+
+  if (!value) return "";
+
+  return String(value)
+    .replace(/\\n/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+
+function parseJSON(value) {
+
+  try {
+
+    return JSON.parse(value);
+
+  } catch (e) {
+
+    return [];
+  }
+}
+
+
+function getYear(date) {
+
+  if (!date) return "";
+
+  var match = String(date).match(/^(\d{4})/);
+
+  return match ? Number(match[1]) : "";
+}
+
+
+function getGenres(value) {
+
+  var data = parseJSON(value);
+
+  if (!Array.isArray(data)) return [];
+
+  return data
+    .map(function(x) {
+      return x.name;
+    })
+    .filter(Boolean);
+}
+
+
+function getPeople(value) {
+
+  var data = parseJSON(value);
+
+  if (!Array.isArray(data)) return [];
+
+  return data;
+}
+
+
+function getHeroAndHeroine(cast) {
+
+  var hero = "";
+  var heroine = "";
+
+  if (!Array.isArray(cast)) {
+
+    return {
+      hero: "",
+      heroine: ""
+    };
+  }
+
+  var male = [
+    "M",
+    "Male"
+  ];
+
+  var female = [
+    "F",
+    "Female"
+  ];
+
+  for (var i = 0; i < cast.length; i++) {
+
+    var person = cast[i];
+
+    if (!person.name) continue;
+
+    var gender = person.gender;
+
+    if (!hero && male.indexOf(String(gender)) >= 0) {
+
+      hero = person.name;
+
+    } else if (!heroine && female.indexOf(String(gender)) >= 0) {
+
+      heroine = person.name;
+    }
+
+    if (hero && heroine) break;
+  }
+
+  return {
+    hero: hero,
+    heroine: heroine
+  };
+}
+
+
+function getDirector(crew) {
+
+  if (!Array.isArray(crew)) return "";
+
+  for (var i = 0; i < crew.length; i++) {
+
+    if (
+      crew[i].job === "Director" &&
+      crew[i].name
+    ) {
+
+      return crew[i].name;
+    }
+  }
+
+  return "";
+}
+
+
+function getLanguage(code) {
+
+  var languages = {
+
+    en: "English",
+    hi: "Hindi",
+    ta: "Tamil",
+    te: "Telugu",
+    ml: "Malayalam",
+    kn: "Kannada",
+    bn: "Bengali",
+    mr: "Marathi",
+    pa: "Punjabi",
+    gu: "Gujarati",
+    fr: "French",
+    es: "Spanish",
+    de: "German",
+    it: "Italian",
+    ja: "Japanese",
+    ko: "Korean",
+    zh: "Chinese",
+    ru: "Russian",
+    pt: "Portuguese",
+    ar: "Arabic"
+  };
+
+  return languages[code] || code || "Unknown";
+}
+
+
+function getIndustry(language) {
+
+  if (language === "Hindi") {
+    return "Bollywood";
+  }
+
+  if (
+    language === "Tamil" ||
+    language === "Telugu" ||
+    language === "Malayalam" ||
+    language === "Kannada"
+  ) {
+    return "South Indian";
+  }
+
+  if (language === "English") {
+    return "Hollywood";
+  }
+
+  return "Other";
+}
+
+
+function getMood(genres, rating) {
+
+  var g = genres.map(function(x) {
+    return x.toLowerCase();
+  });
+
+  if (g.indexOf("romance") >= 0) {
+    return "Romantic";
+  }
+
+  if (
+    g.indexOf("comedy") >= 0 ||
+    g.indexOf("animation") >= 0
+  ) {
+    return "Happy";
+  }
+
+  if (
+    g.indexOf("action") >= 0 ||
+    g.indexOf("adventure") >= 0 ||
+    g.indexOf("thriller") >= 0
+  ) {
+    return "Excited";
+  }
+
+  if (
+    g.indexOf("drama") >= 0 ||
+    g.indexOf("history") >= 0
+  ) {
+    return "Emotional";
+  }
+
+  if (Number(rating) >= 8) {
+    return "Motivated";
+  }
+
+  return "Relaxed";
+}
+
+
+function downloadFile(filename, content) {
+
+  var blob = new Blob(
+    [content],
+    { type: "text/javascript;charset=utf-8" }
+  );
+
+  var url = URL.createObjectURL(blob);
+
+  var a = document.createElement("a");
+
+  a.href = url;
+  a.download = filename;
+
+  document.body.appendChild(a);
+
+  a.click();
+
+  document.body.removeChild(a);
+
+  URL.revokeObjectURL(url);
+}
+
+
+async function convertData() {
+
+  var moviesFile =
+    document.getElementById("moviesFile").files[0];
+
+  var creditsFile =
+    document.getElementById("creditsFile").files[0];
+
+  var status =
+    document.getElementById("status");
+
+
+  if (!moviesFile || !creditsFile) {
+
+    status.textContent =
+      "Please select BOTH CSV files first.";
+
+    return;
+  }
+
+
+  status.textContent =
+    "Reading movies_metadata.csv...\nPlease wait.";
+
+
+  try {
+
+    var moviesText =
+      await moviesFile.text();
+
+    status.textContent =
+      "Reading credits.csv...\nPlease wait.";
+
+
+    var creditsText =
+      await creditsFile.text();
+
+
+    status.textContent =
+      "Processing movie data...\nPlease wait.";
+
+
+    var movieRows =
+      parseCSV(moviesText);
+
+    var creditRows =
+      parseCSV(creditsText);
+
+
+    var movies =
+      makeObjects(movieRows);
+
+    var credits =
+      makeObjects(creditRows);
+
+
+    var creditMap = {};
+
+
+    credits.forEach(function(c) {
+
+      if (c.id) {
+
+        creditMap[String(c.id)] = c;
+      }
+
+    });
+
+
+    var result = [];
+
+    var maxMovies = 1500;
+
+
+    for (
+      var i = 0;
+      i < movies.length && result.length < maxMovies;
+      i++
+    ) {
+
+      var movie = movies[i];
+
+
+      var title =
+        cleanText(movie.title);
+
+
+      if (!title) continue;
+
+
+      var movieId =
+        Number(movie.id);
+
+
+      if (!movieId) continue;
+
+
+      var genres =
+        getGenres(movie.genres);
+
+
+      var language =
+        getLanguage(
+          cleanText(movie.original_language)
+        );
+
+
+      var year =
+        getYear(movie.release_date);
+
+
+      var rating =
+        Number(movie.vote_average);
+
+
+      if (isNaN(rating)) {
+        rating = 0;
+      }
+
+
+      var credit =
+        creditMap[String(movieId)] || {};
+
+
+      var cast =
+        getPeople(credit.cast);
+
+
+      var crew =
+        getPeople(credit.crew);
+
+
+      var people =
+        getHeroAndHeroine(cast);
+
+
+      var director =
+        getDirector(crew);
+
+
+      var genre =
+        genres.length
+          ? genres[0]
+          : "Other";
+
+
+      var industry =
+        getIndustry(language);
+
+
+      var mood =
+        getMood(
+          genres,
+          rating
+        );
+
+
+      var poster = "";
+
+
+      if (movie.poster_path) {
+
+        poster =
+          "https://image.tmdb.org/t/p/w500" +
+          movie.poster_path;
+      }
+
+
+      result.push({
+
+        id: movieId,
+
+        title: title,
+
+        genre: genre,
+
+        genres: genres,
+
+        industry: industry,
+
+        language: language,
+
+        hero: people.hero,
+
+        heroine: people.heroine,
+
+        director: director,
+
+        year: year,
+
+        rating: rating,
+
+        voteCount:
+          Number(movie.vote_count) || 0,
+
+        popularity:
+          Number(movie.popularity) || 0,
+
+        mood: mood,
+
+        description:
+          cleanText(movie.overview),
+
+        poster: poster,
+
+        trailer: ""
+
+      });
+
+    }
+
+
+    var output =
+
+      "// MovieMood - 1500 movie dataset\n" +
+
+      "// Generated from movies_metadata.csv and credits.csv\n\n" +
+
+      "var DEFAULT_MOVIES = " +
+
+      JSON.stringify(
+        result,
+        null,
+        2
+      ) +
+
+      ";\n";
+
+
+    downloadFile(
+      "data.js",
+      output
+    );
+
+
+    status.textContent =
+
+      "SUCCESS!\n\n" +
+
+      "Movies created: " +
+      result.length +
+
+      "\n\n" +
+
+      "A file named data.js has been downloaded.\n\n" +
+
+      "Replace your existing MovieMood/js/data.js with this new data.js.";
+
+  }
+
+  catch (error) {
+
+    console.error(error);
+
+    status.textContent =
+
+      "Something went wrong.\n\n" +
+
+      error.message;
+  }
+
+}
+
+</script>
+
+</body>
+</html>

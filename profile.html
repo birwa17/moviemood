@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>My Profile | MovieMood</title>
+<link rel="stylesheet" href="css/style.css">
+<script>document.documentElement.setAttribute('data-theme', localStorage.getItem('theme') || 'light');</script>
+</head>
+<body>
+<div id="header"></div>
+<main class="container" id="app">
+
+<h2>👤 My Profile</h2>
+<div class="form-box">
+  <p><strong>Email:</strong> <span id="email"></span></p>
+  <p><strong>Movies in watchlist:</strong> <span id="favCount"></span></p>
+  <div id="msg"></div>
+  <form id="profileForm">
+    <label>Name</label><input type="text" id="name" required>
+    <label>New password (leave blank to keep old)</label><input type="password" id="newpass">
+    <button class="btn" type="submit">Save Changes</button>
+  </form>
+</div>
+<h3>My Reviews</h3>
+<div id="myReviews"></div>
+
+</main>
+<div id="footer"></div>
+<script src="js/data.js"></script>
+<script src="js/app.js"></script>
+<script>
+
+if (requireLogin()) {
+  var user = currentUser();
+  document.getElementById('email').textContent = user.email;
+  document.getElementById('name').value = user.name;
+  document.getElementById('favCount').textContent = getFav(user.id).length;
+
+  var mine = getReviews().filter(function (r) { return r.userId === user.id; });
+  var html = mine.length ? '' : '<p>You have not reviewed any movie yet.</p>';
+  mine.forEach(function (r) {
+    var m = findMovie(r.movieId);
+    if (m) html += '<div class="review"><a href="movie.html?id=' + m.id + '"><strong>' + esc(m.title) + '</strong></a> — ⭐ ' + r.rating + '/10<p>' + esc(r.text) + '</p></div>';
+  });
+  document.getElementById('myReviews').innerHTML = html;
+
+  document.getElementById('profileForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var name = document.getElementById('name').value.trim();
+    var newpass = document.getElementById('newpass').value;
+    if (newpass != '' && newpass.length < 6) {
+      document.getElementById('msg').innerHTML = '<div class="alert error">Password must be at least 6 characters.</div>';
+      return;
+    }
+    var users = getUsers();
+    users.forEach(function (u) {
+      if (u.id === user.id) { u.name = name; if (newpass != '') u.password = newpass; }
+    });
+    saveUsers(users);
+    user.name = name;
+    save('mm_current', user);
+    flash('Profile updated.');
+    location.reload();
+  });
+}
+
+</script>
+</body>
+</html>

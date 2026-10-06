@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Surprise Me | MovieMood</title>
+<link rel="stylesheet" href="css/style.css">
+<script>document.documentElement.setAttribute('data-theme', localStorage.getItem('theme') || 'light');</script>
+</head>
+<body>
+<div id="header"></div>
+<main class="container" id="app">
+
+<div class="center">
+  <h2>🎲 Your Surprise Movie</h2>
+  <div class="grid single" id="pick"></div>
+  <p id="desc"></p>
+  <button class="btn" id="again">Surprise me again</button>
+  <a class="btn btn-alt" id="detailsLink" href="#">View details</a>
+</div>
+
+</main>
+<div id="footer"></div>
+<script src="js/data.js"></script>
+<script src="js/app.js"></script>
+<script>
+
+function surprise() {
+  var list = getMovies();
+  if (list.length == 0) { document.getElementById('desc').textContent = 'No movies available.'; return; }
+  var m = list[Math.floor(Math.random() * list.length)];
+  document.getElementById('pick').innerHTML = movieCard(m);
+  document.getElementById('desc').textContent = m.description;
+  document.getElementById('detailsLink').href = 'movie.html?id=' + m.id;
+}
+document.getElementById('again').addEventListener('click', surprise);
+surprise();
+
+</script>
+</body>
+</html>

@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Login | MovieMood</title>
+<link rel="stylesheet" href="css/style.css">
+<script>document.documentElement.setAttribute('data-theme', localStorage.getItem('theme') || 'light');</script>
+</head>
+<body>
+<div id="header"></div>
+<main class="container" id="app">
+
+<div class="form-box">
+  <h2>Login</h2>
+  <div id="msg"></div>
+  <form id="loginForm">
+    <label>Email</label><input type="email" id="email" required>
+    <label>Password</label><input type="password" id="password" required>
+    <button class="btn" type="submit">Login</button>
+  </form>
+  <p>New here? <a href="register.html">Create an account</a></p>
+  <p class="small">Admin login: admin@moviemood.com / admin123</p>
+</div>
+
+</main>
+<div id="footer"></div>
+<script src="js/data.js"></script>
+<script src="js/app.js"></script>
+<script>
+
+document.getElementById('loginForm').addEventListener('submit', function (e) {
+  e.preventDefault();
+  var email = document.getElementById('email').value.trim().toLowerCase();
+  var pass = document.getElementById('password').value;
+  var users = getUsers();
+  for (var i = 0; i < users.length; i++) {
+    if (users[i].email === email && users[i].password === pass) {
+      save('mm_current', { id: users[i].id, name: users[i].name, email: users[i].email, role: users[i].role });
+      location.href = users[i].role === 'admin' ? 'admin.html' : 'index.html';
+      return;
+    }
+  }
+  document.getElementById('msg').innerHTML = '<div class="alert error">Invalid email or password.</div>';
+});
+
+</script>
+</body>
+</html>

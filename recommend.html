@@ -1,0 +1,1298 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+<meta charset="UTF-8">
+
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<title>Recommend Movies | MovieMood</title>
+
+<link rel="stylesheet" href="css/style.css">
+
+<script>
+document.documentElement.setAttribute(
+  'data-theme',
+  localStorage.getItem('theme') || 'light'
+);
+</script>
+
+</head>
+
+
+<body>
+
+
+<!-- HEADER -->
+
+<div id="header"></div>
+
+
+<main class="container" id="app">
+
+
+  <h2>Get Personalized Movie Recommendations</h2>
+
+  <p class="muted">
+    Choose your preferences and MovieMood will find the movies that best match them.
+  </p>
+
+
+  <!-- =========================================
+       FILTER FORM
+       ========================================= -->
+
+  <form id="filterForm" class="filter-form">
+
+
+    <!-- MOOD -->
+
+    <div>
+
+      <label for="mood">
+        Mood
+      </label>
+
+      <select id="mood">
+
+        <option value="">
+          Any
+        </option>
+
+        <option value="Happy">
+          Happy
+        </option>
+
+        <option value="Romantic">
+          Romantic
+        </option>
+
+        <option value="Excited">
+          Excited
+        </option>
+
+        <option value="Emotional">
+          Emotional
+        </option>
+
+        <option value="Motivated">
+          Motivated
+        </option>
+
+        <option value="Relaxed">
+          Relaxed
+        </option>
+
+      </select>
+
+    </div>
+
+
+    <!-- GENRE -->
+
+    <div>
+
+      <label for="genre">
+        Genre
+      </label>
+
+      <select id="genre">
+
+        <option value="">
+          Any
+        </option>
+
+      </select>
+
+    </div>
+
+
+    <!-- INDUSTRY -->
+
+    <div>
+
+      <label for="industry">
+        Industry
+      </label>
+
+      <select id="industry">
+
+        <option value="">
+          Any
+        </option>
+
+      </select>
+
+    </div>
+
+
+    <!-- LANGUAGE -->
+
+    <div>
+
+      <label for="language">
+        Language
+      </label>
+
+      <select id="language">
+
+        <option value="">
+          Any
+        </option>
+
+      </select>
+
+    </div>
+
+
+    <!-- HERO -->
+
+    <div>
+
+      <label for="hero">
+        Hero
+      </label>
+
+      <input
+        type="text"
+        id="hero"
+        placeholder="Example: Aamir Khan"
+      >
+
+    </div>
+
+
+    <!-- HEROINE -->
+
+    <div>
+
+      <label for="heroine">
+        Heroine
+      </label>
+
+      <input
+        type="text"
+        id="heroine"
+        placeholder="Example: Vidya Balan"
+      >
+
+    </div>
+
+
+    <!-- YEAR -->
+
+    <div>
+
+      <label for="year">
+        Released After
+      </label>
+
+      <input
+        type="number"
+        id="year"
+        placeholder="Example: 2010"
+        min="1900"
+        max="2030"
+      >
+
+    </div>
+
+
+    <!-- RATING -->
+
+    <div>
+
+      <label for="rating">
+        Minimum Rating
+      </label>
+
+      <input
+        type="number"
+        id="rating"
+        step="0.1"
+        min="0"
+        max="10"
+        placeholder="Example: 7.5"
+      >
+
+    </div>
+
+
+    <!-- BUTTONS -->
+
+    <div class="full">
+
+      <button
+        class="btn"
+        type="submit"
+      >
+        Recommend Movies
+      </button>
+
+
+      <button
+        class="btn btn-alt"
+        type="button"
+        id="resetBtn"
+      >
+        Reset
+      </button>
+
+    </div>
+
+
+  </form>
+
+
+  <!-- =========================================
+       RECOMMENDATION INFORMATION
+       ========================================= -->
+
+  <div
+    id="recommendationInfo"
+    style="margin-top:25px;"
+  ></div>
+
+
+  <h3 id="count"></h3>
+
+
+  <!-- MOVIE RESULTS -->
+
+  <div
+    class="grid"
+    id="results"
+  ></div>
+
+
+</main>
+
+
+<!-- FOOTER -->
+
+<div id="footer"></div>
+
+
+<!-- =========================================
+     DATA + COMMON JAVASCRIPT
+     ========================================= -->
+
+<script src="js/data.js"></script>
+
+<script src="js/app.js"></script>
+
+
+<script>
+
+
+/* =========================================================
+   FILL GENRE / INDUSTRY / LANGUAGE DROPDOWNS
+   ========================================================= */
+
+function fillDropdown(id, key) {
+
+  var values = uniqueValues(key);
+
+  var html = '<option value="">Any</option>';
+
+  values.forEach(function(value) {
+
+    html +=
+      '<option value="' +
+      esc(value) +
+      '">' +
+      esc(value) +
+      '</option>';
+
+  });
+
+  document.getElementById(id).innerHTML = html;
+
+}
+
+
+/*
+   We only fill these three dropdowns dynamically.
+
+   Mood is written directly in the HTML above,
+   so it will always contain all six moods.
+*/
+
+fillDropdown('genre', 'genre');
+
+fillDropdown('industry', 'industry');
+
+fillDropdown('language', 'language');
+
+
+
+/* =========================================================
+   GET FORM VALUE
+   ========================================================= */
+
+function val(id) {
+
+  return document
+    .getElementById(id)
+    .value
+    .trim();
+
+}
+
+
+
+/* =========================================================
+   CHECK HERO / HEROINE
+   ========================================================= */
+
+function containsPerson(movieValue, searchValue) {
+
+  if (!searchValue) {
+
+    return true;
+
+  }
+
+
+  if (!movieValue) {
+
+    return false;
+
+  }
+
+
+  return String(movieValue)
+    .toLowerCase()
+    .indexOf(
+      searchValue.toLowerCase()
+    ) !== -1;
+
+}
+
+
+
+/* =========================================================
+   CHECK GENRE
+   ========================================================= */
+
+function genreMatches(movie, selectedGenre) {
+
+  if (!selectedGenre) {
+
+    return true;
+
+  }
+
+
+  /*
+     Check the main genre
+  */
+
+  if (
+    movie.genre &&
+    String(movie.genre)
+      .toLowerCase() ===
+    selectedGenre.toLowerCase()
+  ) {
+
+    return true;
+
+  }
+
+
+  /*
+     Check all genres
+  */
+
+  if (movie.genres) {
+
+    var allGenres =
+      String(movie.genres)
+      .toLowerCase();
+
+
+    if (
+      allGenres.indexOf(
+        selectedGenre.toLowerCase()
+      ) !== -1
+    ) {
+
+      return true;
+
+    }
+
+  }
+
+
+  return false;
+
+}
+
+
+
+/* =========================================================
+   CALCULATE RECOMMENDATION SCORE
+   ========================================================= */
+
+function calculateScore(movie, preferences) {
+
+  var score = 0;
+
+  var matches = 0;
+
+  var totalPreferences = 0;
+
+
+  /* -----------------------------------------
+     MOOD
+     ----------------------------------------- */
+
+  if (preferences.mood) {
+
+    totalPreferences++;
+
+
+    if (
+      String(movie.mood || '')
+        .toLowerCase() ===
+      preferences.mood.toLowerCase()
+    ) {
+
+      score += 3;
+
+      matches++;
+
+    }
+
+  }
+
+
+
+  /* -----------------------------------------
+     GENRE
+     ----------------------------------------- */
+
+  if (preferences.genre) {
+
+    totalPreferences++;
+
+
+    if (
+      genreMatches(
+        movie,
+        preferences.genre
+      )
+    ) {
+
+      score += 3;
+
+      matches++;
+
+    }
+
+  }
+
+
+
+  /* -----------------------------------------
+     INDUSTRY
+     ----------------------------------------- */
+
+  if (preferences.industry) {
+
+    totalPreferences++;
+
+
+    if (
+      String(movie.industry || '')
+        .toLowerCase() ===
+      preferences.industry.toLowerCase()
+    ) {
+
+      score += 2;
+
+      matches++;
+
+    }
+
+  }
+
+
+
+  /* -----------------------------------------
+     LANGUAGE
+     ----------------------------------------- */
+
+  if (preferences.language) {
+
+    totalPreferences++;
+
+
+    if (
+      String(movie.language || '')
+        .toLowerCase() ===
+      preferences.language.toLowerCase()
+    ) {
+
+      score += 2;
+
+      matches++;
+
+    }
+
+  }
+
+
+
+  /* -----------------------------------------
+     HERO
+     ----------------------------------------- */
+
+  if (preferences.hero) {
+
+    totalPreferences++;
+
+
+    if (
+      containsPerson(
+        movie.hero,
+        preferences.hero
+      )
+    ) {
+
+      score += 2;
+
+      matches++;
+
+    }
+
+  }
+
+
+
+  /* -----------------------------------------
+     HEROINE
+     ----------------------------------------- */
+
+  if (preferences.heroine) {
+
+    totalPreferences++;
+
+
+    if (
+      containsPerson(
+        movie.heroine,
+        preferences.heroine
+      )
+    ) {
+
+      score += 2;
+
+      matches++;
+
+    }
+
+  }
+
+
+
+  /* -----------------------------------------
+     RELEASE YEAR
+     ----------------------------------------- */
+
+  if (preferences.year) {
+
+    totalPreferences++;
+
+
+    if (
+      Number(movie.year) >=
+      Number(preferences.year)
+    ) {
+
+      score += 1;
+
+      matches++;
+
+    }
+
+  }
+
+
+
+  /* -----------------------------------------
+     RATING
+     ----------------------------------------- */
+
+  if (preferences.rating) {
+
+    totalPreferences++;
+
+
+    if (
+      Number(movie.rating) >=
+      Number(preferences.rating)
+    ) {
+
+      score += 2;
+
+      matches++;
+
+    }
+
+  }
+
+
+
+  return {
+
+    score: score,
+
+    matches: matches,
+
+    total: totalPreferences
+
+  };
+
+}
+
+
+
+/* =========================================================
+   RECOMMEND MOVIES
+   ========================================================= */
+
+function recommend() {
+
+
+  /* -----------------------------------------
+     GET USER PREFERENCES
+     ----------------------------------------- */
+
+  var preferences = {
+
+    mood: val('mood'),
+
+    genre: val('genre'),
+
+    industry: val('industry'),
+
+    language: val('language'),
+
+    hero: val('hero'),
+
+    heroine: val('heroine'),
+
+    year: val('year'),
+
+    rating: val('rating')
+
+  };
+
+
+
+  /* -----------------------------------------
+     CHECK WHETHER USER SELECTED ANYTHING
+     ----------------------------------------- */
+
+  var hasPreferences =
+
+    preferences.mood ||
+
+    preferences.genre ||
+
+    preferences.industry ||
+
+    preferences.language ||
+
+    preferences.hero ||
+
+    preferences.heroine ||
+
+    preferences.year ||
+
+    preferences.rating;
+
+
+
+  /* -----------------------------------------
+     GET ALL MOVIES
+     ----------------------------------------- */
+
+  var movies = getMovies();
+
+
+
+  /* =======================================================
+     NO FILTER SELECTED
+     ======================================================= */
+
+  if (!hasPreferences) {
+
+
+    var topMovies =
+      movies
+        .slice()
+        .sort(function(a, b) {
+
+          return Number(b.rating || 0) -
+                 Number(a.rating || 0);
+
+        });
+
+
+    document.getElementById(
+      'count'
+    ).textContent =
+      'Showing top rated movies';
+
+
+
+    document.getElementById(
+      'recommendationInfo'
+    ).innerHTML =
+
+      '<div class="recommendation-box">' +
+
+      '<strong>MovieMood Recommendation</strong>' +
+
+      '<p>' +
+
+      'Choose your preferences above to get personalized movie recommendations.' +
+
+      '</p>' +
+
+      '</div>';
+
+
+
+    document.getElementById(
+      'results'
+    ).innerHTML =
+
+      topMovies
+        .slice(0, 24)
+        .map(movieCard)
+        .join('');
+
+
+    return;
+
+  }
+
+
+
+  /* =======================================================
+     SCORE EVERY MOVIE
+     ======================================================= */
+
+  var scoredMovies =
+
+    movies.map(function(movie) {
+
+
+      var result =
+
+        calculateScore(
+          movie,
+          preferences
+        );
+
+
+      return {
+
+        movie: movie,
+
+        score: result.score,
+
+        matches: result.matches,
+
+        total: result.total
+
+      };
+
+    });
+
+
+
+  /* =======================================================
+     REMOVE MOVIES WITH ZERO MATCHES
+     ======================================================= */
+
+  scoredMovies =
+
+    scoredMovies.filter(
+      function(item) {
+
+        return item.matches > 0;
+
+      }
+    );
+
+
+
+  /* =======================================================
+     SORT BY RECOMMENDATION SCORE
+     ======================================================= */
+
+  scoredMovies.sort(
+    function(a, b) {
+
+
+      /*
+         First compare recommendation score
+      */
+
+      if (
+        b.score !== a.score
+      ) {
+
+        return b.score -
+               a.score;
+
+      }
+
+
+      /*
+         If score is equal,
+         use movie rating
+      */
+
+      return (
+
+        Number(
+          b.movie.rating || 0
+        ) -
+
+        Number(
+          a.movie.rating || 0
+        )
+
+      );
+
+    }
+  );
+
+
+
+  /* =======================================================
+     GET TOP 40 RESULTS
+     ======================================================= */
+
+  var results =
+
+    scoredMovies
+      .slice(0, 40)
+      .map(function(item) {
+
+        return item.movie;
+
+      });
+
+
+
+  /* =======================================================
+     RESULT COUNT
+     ======================================================= */
+
+  document.getElementById(
+    'count'
+  ).textContent =
+
+    results.length +
+
+    ' recommended movie(s)';
+
+
+
+  /* =======================================================
+     INFORMATION MESSAGE
+     ======================================================= */
+
+  document.getElementById(
+    'recommendationInfo'
+  ).innerHTML =
+
+    '<div class="recommendation-box">' +
+
+      '<strong>MovieMood Recommendation</strong>' +
+
+      '<p>' +
+
+      'We checked your preferences against ' +
+
+      '<strong>' +
+
+      movies.length +
+
+      '</strong>' +
+
+      ' movies and ranked the closest matches first.' +
+
+      '</p>' +
+
+    '</div>';
+
+
+
+  /* =======================================================
+     DISPLAY RESULTS
+     ======================================================= */
+
+  if (results.length) {
+
+
+    document.getElementById(
+      'results'
+    ).innerHTML =
+
+      results
+        .map(movieCard)
+        .join('');
+
+
+  } else {
+
+
+    document.getElementById(
+      'results'
+    ).innerHTML =
+
+      '<div class="empty-state">' +
+
+        '<h3>No matching movies found</h3>' +
+
+        '<p>' +
+
+        'Try changing or removing one of your filters.' +
+
+        '</p>' +
+
+      '</div>';
+
+  }
+
+}
+
+
+
+/* =========================================================
+   FORM SUBMIT
+   ========================================================= */
+
+document
+  .getElementById('filterForm')
+  .addEventListener(
+    'submit',
+    function(event) {
+
+      event.preventDefault();
+
+      recommend();
+
+    }
+  );
+
+
+
+/* =========================================================
+   RESET BUTTON
+   ========================================================= */
+
+document
+  .getElementById('resetBtn')
+  .addEventListener(
+    'click',
+    function() {
+
+
+      document
+        .getElementById('filterForm')
+        .reset();
+
+
+      document
+        .getElementById('count')
+        .textContent = '';
+
+
+      document
+        .getElementById('recommendationInfo')
+        .innerHTML = '';
+
+
+      document
+        .getElementById('results')
+        .innerHTML = '';
+
+    }
+  );
+
+
+
+/* =========================================================
+   MOOD FROM HOME PAGE
+   ========================================================= */
+
+var moodParam =
+
+  new URLSearchParams(
+    location.search
+  ).get('mood');
+
+
+
+if (moodParam) {
+
+
+  /*
+     Only use the value if it is
+     one of our MovieMood moods.
+  */
+
+  var validMoods = [
+
+    'Happy',
+
+    'Romantic',
+
+    'Excited',
+
+    'Emotional',
+
+    'Motivated',
+
+    'Relaxed'
+
+  ];
+
+
+  if (
+    validMoods.indexOf(moodParam) !== -1
+  ) {
+
+    document.getElementById(
+      'mood'
+    ).value = moodParam;
+
+
+    recommend();
+
+  }
+
+}
+
+
+</script>
+
+
+
+<!-- =========================================================
+     PAGE-SPECIFIC STYLING
+     ========================================================= -->
+
+<style>
+
+
+/* -----------------------------------------
+   RECOMMENDATION INFORMATION BOX
+   ----------------------------------------- */
+
+.recommendation-box {
+
+  background: #fff8df;
+
+  border-left: 5px solid #d99a00;
+
+  padding: 16px 20px;
+
+  border-radius: 10px;
+
+  margin-bottom: 20px;
+
+  box-sizing: border-box;
+
+}
+
+
+.recommendation-box strong {
+
+  color: #4b2924;
+
+}
+
+
+.recommendation-box p {
+
+  margin-bottom: 0;
+
+  line-height: 1.5;
+
+}
+
+
+
+/* -----------------------------------------
+   EMPTY RESULTS
+   ----------------------------------------- */
+
+.empty-state {
+
+  width: 100%;
+
+  text-align: center;
+
+  padding: 40px 20px;
+
+  background: #ffffff;
+
+  border-radius: 12px;
+
+  border: 1px solid #e2d6c9;
+
+  box-sizing: border-box;
+
+}
+
+
+.empty-state h3 {
+
+  color: #4b2924;
+
+}
+
+
+.empty-state p {
+
+  color: #666;
+
+}
+
+
+
+/* -----------------------------------------
+   RECOMMENDATION FORM
+   ----------------------------------------- */
+
+.filter-form {
+
+  width: 100%;
+
+  max-width: 100%;
+
+  box-sizing: border-box;
+
+  display: grid;
+
+  grid-template-columns:
+    repeat(2, minmax(0, 1fr));
+
+  gap: 22px;
+
+  padding: 25px;
+
+}
+
+
+.filter-form > div {
+
+  min-width: 0;
+
+  width: 100%;
+
+  box-sizing: border-box;
+
+}
+
+
+.filter-form label {
+
+  display: block;
+
+  margin-bottom: 8px;
+
+  font-weight: 700;
+
+}
+
+
+.filter-form input,
+.filter-form select {
+
+  width: 100%;
+
+  max-width: 100%;
+
+  min-width: 0;
+
+  box-sizing: border-box;
+
+}
+
+
+.filter-form .full {
+
+  grid-column: 1 / -1;
+
+  display: flex;
+
+  gap: 12px;
+
+  align-items: center;
+
+  flex-wrap: wrap;
+
+}
+
+
+.filter-form .full button {
+
+  margin: 0;
+
+}
+
+
+
+/* -----------------------------------------
+   MOBILE
+   ----------------------------------------- */
+
+@media (max-width: 700px) {
+
+  .filter-form {
+
+    grid-template-columns: 1fr;
+
+    padding: 18px;
+
+  }
+
+
+  .filter-form .full {
+
+    grid-column: auto;
+
+    flex-direction: column;
+
+    align-items: stretch;
+
+  }
+
+
+  .filter-form .full button {
+
+    width: 100%;
+
+  }
+
+}
+
+
+</style>
+
+
+
+</body>
+
+</html>

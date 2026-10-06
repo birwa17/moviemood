@@ -1,0 +1,1068 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<title>Movie Details | MovieMood</title>
+
+<link rel="stylesheet" href="css/style.css">
+
+<script>
+document.documentElement.setAttribute(
+  'data-theme',
+  localStorage.getItem('theme') || 'light'
+);
+</script>
+
+</head>
+
+
+<body>
+
+
+<div id="header"></div>
+
+
+<main class="container" id="app">
+
+  <div id="detail"></div>
+
+</main>
+
+
+<div id="footer"></div>
+
+
+<script src="js/data.js"></script>
+<script src="js/app.js"></script>
+
+
+<script>
+
+/* =========================================================
+   GET MOVIE ID
+   ========================================================= */
+
+var movieId =
+  Number(
+    new URLSearchParams(location.search).get('id')
+  );
+
+
+/* =========================================================
+   DISPLAY MOVIE
+   ========================================================= */
+
+function draw() {
+
+  var m = findMovie(movieId);
+
+
+  /* MOVIE NOT FOUND */
+
+  if (!m) {
+
+    document.getElementById('detail').innerHTML =
+      '<div class="empty-state">' +
+        '<h2>Movie not found</h2>' +
+        '<p>The movie you are looking for does not exist.</p>' +
+        '<a class="btn" href="index.html">Back to Home</a>' +
+      '</div>';
+
+    return;
+  }
+
+
+  var user = currentUser();
+
+
+  /* =======================================================
+     REVIEWS
+     ======================================================= */
+
+  var reviews =
+    getReviews().filter(function(r) {
+
+      return Number(r.movieId) === movieId;
+
+    });
+
+
+  var total = 0;
+
+
+  reviews.forEach(function(r) {
+
+    total += Number(r.rating);
+
+  });
+
+
+  var userRating =
+    reviews.length
+
+      ? (total / reviews.length).toFixed(1) +
+        ' / 10 (' +
+        reviews.length +
+        ' reviews)'
+
+      : 'No user ratings yet';
+
+
+  /* =======================================================
+     WATCHLIST BUTTON
+     ======================================================= */
+
+  var favBtn =
+    '<a class="btn" href="login.html">' +
+      'Login to add to watchlist' +
+    '</a>';
+
+
+  if (user) {
+
+    var inFav =
+      getFav(user.id).indexOf(movieId) > -1;
+
+
+    favBtn =
+
+      '<button ' +
+        'class="btn" ' +
+        'onclick="toggleFav()"' +
+      '>' +
+
+        (
+          inFav
+            ? 'Remove from Watchlist'
+            : 'Add to Watchlist'
+        ) +
+
+      '</button>';
+
+  }
+
+
+  /* =======================================================
+     MOVIE FIRST LETTER
+     ======================================================= */
+
+  var firstLetter =
+    String(m.title || 'M')
+      .trim()
+      .charAt(0)
+      .toUpperCase();
+
+
+  /* =======================================================
+     MOVIE DETAILS
+     ======================================================= */
+
+  var html =
+
+    '<div class="details">' +
+
+
+      /* ===================================================
+         LETTER PLACEHOLDER
+         =================================================== */
+
+      '<div class="poster-box">' +
+
+        '<div class="movie-detail-placeholder">' +
+
+          '<div class="movie-detail-letter">' +
+
+            esc(firstLetter) +
+
+          '</div>' +
+
+        '</div>' +
+
+      '</div>' +
+
+
+      /* ===================================================
+         MOVIE INFORMATION
+         =================================================== */
+
+      '<div class="info">' +
+
+        '<h1>' +
+
+          esc(m.title) +
+
+          ' <small>(' +
+
+          esc(m.year) +
+
+          ')</small>' +
+
+        '</h1>' +
+
+
+        '<p>' +
+
+          '<span class="tag">' +
+
+            esc(m.genre || 'Unknown') +
+
+          '</span> ' +
+
+          '<span class="tag">' +
+
+            esc(m.mood || 'Relaxed') +
+
+          '</span>' +
+
+        '</p>' +
+
+
+        '<table class="info-table">' +
+
+
+          '<tr>' +
+
+            '<td>Industry</td>' +
+
+            '<td>' +
+
+              esc(m.industry || 'Not available') +
+
+            '</td>' +
+
+          '</tr>' +
+
+
+          '<tr>' +
+
+            '<td>Language</td>' +
+
+            '<td>' +
+
+              esc(m.language || 'Not available') +
+
+            '</td>' +
+
+          '</tr>' +
+
+
+          '<tr>' +
+
+            '<td>Hero</td>' +
+
+            '<td>' +
+
+              esc(m.hero || 'Not available') +
+
+            '</td>' +
+
+          '</tr>' +
+
+
+          '<tr>' +
+
+            '<td>Heroine</td>' +
+
+            '<td>' +
+
+              esc(m.heroine || 'Not available') +
+
+            '</td>' +
+
+          '</tr>' +
+
+
+          '<tr>' +
+
+            '<td>Director</td>' +
+
+            '<td>' +
+
+              esc(m.director || 'Not available') +
+
+            '</td>' +
+
+          '</tr>' +
+
+
+          '<tr>' +
+
+            '<td>Rating</td>' +
+
+            '<td>' +
+
+              '⭐ ' +
+
+              esc(m.rating || '0') +
+
+              ' / 10' +
+
+            '</td>' +
+
+          '</tr>' +
+
+
+          '<tr>' +
+
+            '<td>User Rating</td>' +
+
+            '<td>' +
+
+              userRating +
+
+            '</td>' +
+
+          '</tr>' +
+
+
+        '</table>' +
+
+
+        '<p class="movie-description">' +
+
+          esc(
+            m.description ||
+            m.overview ||
+            'No description available for this movie.'
+          ) +
+
+        '</p>' +
+
+
+        /* =================================================
+           WATCHLIST
+           ================================================= */
+
+        '<div class="movie-actions">' +
+
+          favBtn +
+
+
+          /* ===============================================
+             COMPLETED MOVIE
+             =============================================== */
+
+          '<button ' +
+
+            'class="btn completed-btn" ' +
+
+            'onclick="completedMovie()"' +
+
+          '>' +
+
+            'I Completed This Movie' +
+
+          '</button>' +
+
+
+          /* ===============================================
+             WATCH NEXT
+             =============================================== */
+
+          '<a ' +
+
+            'class="btn btn-alt next-movie-btn" ' +
+
+            'href="watchnext.html?id=' +
+
+            encodeURIComponent(movieId) +
+
+            '"' +
+
+          '>' +
+
+            'Find What To Watch Next' +
+
+          '</a>' +
+
+        '</div>' +
+
+
+      '</div>' +
+
+    '</div>';
+
+
+  /* =======================================================
+     TRAILER
+     ======================================================= */
+
+  if (m.trailer) {
+
+    html +=
+
+      '<h2>Trailer</h2>' +
+
+      '<div class="video-box">' +
+
+        '<iframe ' +
+
+          'src="' +
+
+          esc(m.trailer) +
+
+          '" ' +
+
+          'allowfullscreen>' +
+
+        '</iframe>' +
+
+      '</div>';
+
+  }
+
+
+  /* =======================================================
+     RATE & REVIEW
+     ======================================================= */
+
+  html +=
+
+    '<section class="review-section">' +
+
+      '<h2>Rate & Review</h2>';
+
+
+  if (user) {
+
+    html +=
+
+      '<form ' +
+
+        'class="review-form" ' +
+
+        'onsubmit="saveReview(event)"' +
+
+      '>' +
+
+
+        '<label for="rv_rating">' +
+
+          'Your Rating (1 - 10)' +
+
+        '</label>' +
+
+
+        '<input ' +
+
+          'type="number" ' +
+
+          'id="rv_rating" ' +
+
+          'min="1" ' +
+
+          'max="10" ' +
+
+          'required ' +
+
+          'placeholder="Example: 8"' +
+
+        '>' +
+
+
+        '<label for="rv_text">' +
+
+          'Your Review' +
+
+        '</label>' +
+
+
+        '<textarea ' +
+
+          'id="rv_text" ' +
+
+          'rows="4" ' +
+
+          'placeholder="What did you think about this movie?"' +
+
+        '></textarea>' +
+
+
+        '<button ' +
+
+          'class="btn" ' +
+
+          'type="submit"' +
+
+        '>' +
+
+          'Submit Review' +
+
+        '</button>' +
+
+
+      '</form>';
+
+  }
+
+  else {
+
+    html +=
+
+      '<div class="login-review-message">' +
+
+        '<p>' +
+
+          '<a href="login.html">Login</a>' +
+
+          ' to write a review.' +
+
+        '</p>' +
+
+      '</div>';
+
+  }
+
+
+  html += '</section>';
+
+
+  /* =======================================================
+     OTHER REVIEWS
+     ======================================================= */
+
+  html +=
+
+    '<section class="other-reviews">' +
+
+      '<h3>What Others Say</h3>';
+
+
+  if (reviews.length === 0) {
+
+    html +=
+
+      '<p class="muted">' +
+
+        'No reviews yet. Be the first!' +
+
+      '</p>';
+
+  }
+
+
+  reviews.forEach(function(r) {
+
+    html +=
+
+      '<div class="review">' +
+
+        '<strong>' +
+
+          esc(r.userName) +
+
+        '</strong>' +
+
+        ' — ⭐ ' +
+
+        esc(r.rating) +
+
+        '/10 ' +
+
+        '<small>' +
+
+          esc(r.date) +
+
+        '</small>' +
+
+        '<p>' +
+
+          esc(r.text || 'No written review.') +
+
+        '</p>' +
+
+      '</div>';
+
+  });
+
+
+  html += '</section>';
+
+
+  /* =======================================================
+     SHOW PAGE
+     ======================================================= */
+
+  document.getElementById('detail').innerHTML = html;
+
+
+  document.title =
+    m.title +
+    ' | MovieMood';
+
+}
+
+
+/* =========================================================
+   ADD / REMOVE WATCHLIST
+   ========================================================= */
+
+function toggleFav() {
+
+  var user = currentUser();
+
+
+  if (!user) {
+
+    location.href = 'login.html';
+
+    return;
+
+  }
+
+
+  var list =
+    getFav(user.id);
+
+
+  var pos =
+    list.indexOf(movieId);
+
+
+  if (pos > -1) {
+
+    list.splice(pos, 1);
+
+  }
+
+  else {
+
+    list.push(movieId);
+
+  }
+
+
+  saveFav(
+    user.id,
+    list
+  );
+
+
+  draw();
+
+}
+
+
+/* =========================================================
+   COMPLETED MOVIE
+   ========================================================= */
+
+function completedMovie() {
+
+  var m =
+    findMovie(movieId);
+
+
+  if (!m) {
+
+    return;
+
+  }
+
+
+  /*
+     Save the completed movie.
+  */
+
+  localStorage.setItem(
+    'mm_last_completed',
+    String(movieId)
+  );
+
+
+  /*
+     Also keep a history of completed movies.
+  */
+
+  var completed =
+    JSON.parse(
+      localStorage.getItem('mm_completed_movies') || '[]'
+    );
+
+
+  if (completed.indexOf(movieId) === -1) {
+
+    completed.push(movieId);
+
+  }
+
+
+  localStorage.setItem(
+    'mm_completed_movies',
+    JSON.stringify(completed)
+  );
+
+
+  /*
+     Open Watch Next page.
+  */
+
+  location.href =
+    'watchnext.html?id=' +
+    encodeURIComponent(movieId);
+
+}
+
+
+/* =========================================================
+   SAVE REVIEW
+   ========================================================= */
+
+function saveReview(e) {
+
+  e.preventDefault();
+
+
+  var user =
+    currentUser();
+
+
+  if (!user) {
+
+    location.href = 'login.html';
+
+    return;
+
+  }
+
+
+  var rating =
+    Number(
+      document.getElementById(
+        'rv_rating'
+      ).value
+    );
+
+
+  var text =
+    document.getElementById(
+      'rv_text'
+    ).value.trim();
+
+
+  if (
+    rating < 1 ||
+    rating > 10
+  ) {
+
+    alert(
+      'Rating must be between 1 and 10'
+    );
+
+    return;
+
+  }
+
+
+  /*
+     One review per user
+     for each movie.
+  */
+
+  var reviews =
+    getReviews().filter(
+
+      function(r) {
+
+        return !(
+          Number(r.userId) === Number(user.id) &&
+          Number(r.movieId) === movieId
+        );
+
+      }
+
+    );
+
+
+  reviews.push({
+
+    id: Date.now(),
+
+    userId:
+      user.id,
+
+    userName:
+      user.name,
+
+    movieId:
+      movieId,
+
+    rating:
+      rating,
+
+    text:
+      text,
+
+    date:
+      new Date().toLocaleDateString()
+
+  });
+
+
+  saveReviews(
+    reviews
+  );
+
+
+  draw();
+
+}
+
+
+/* =========================================================
+   START PAGE
+   ========================================================= */
+
+draw();
+
+</script>
+
+
+<style>
+
+/* =========================================================
+   MOVIE DETAIL LAYOUT
+   ========================================================= */
+
+.details {
+
+  display: grid;
+
+  grid-template-columns:
+    320px
+    1fr;
+
+  gap: 40px;
+
+  align-items: start;
+
+}
+
+
+/* =========================================================
+   MOVIE LETTER BOX
+   ========================================================= */
+
+.movie-detail-placeholder {
+
+  width: 100%;
+
+  height: 420px;
+
+  background:
+    linear-gradient(
+      135deg,
+      #4b2924,
+      #6b463d
+    );
+
+  border-radius: 12px;
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: center;
+
+  overflow: hidden;
+
+  box-shadow:
+    0 8px 20px
+    rgba(0, 0, 0, 0.15);
+
+}
+
+
+.movie-detail-letter {
+
+  width: 150px;
+
+  height: 150px;
+
+  border-radius: 50%;
+
+  background: #d99a00;
+
+  color: white;
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: center;
+
+  font-size: 85px;
+
+  font-weight: 800;
+
+  box-shadow:
+    0 10px 25px
+    rgba(0, 0, 0, 0.25);
+
+}
+
+
+/* =========================================================
+   MOVIE DESCRIPTION
+   ========================================================= */
+
+.movie-description {
+
+  line-height: 1.7;
+
+  margin-top: 20px;
+
+}
+
+
+/* =========================================================
+   BUTTON AREA
+   ========================================================= */
+
+.movie-actions {
+
+  display: flex;
+
+  flex-wrap: wrap;
+
+  gap: 10px;
+
+  margin-top: 20px;
+
+}
+
+
+.movie-actions .btn {
+
+  margin: 0;
+
+}
+
+
+/* =========================================================
+   REVIEW SECTION
+   ========================================================= */
+
+.review-section {
+
+  margin-top: 35px;
+
+}
+
+
+.other-reviews {
+
+  margin-top: 30px;
+
+}
+
+
+.review {
+
+  background: #ffffff;
+
+  border: 1px solid #e2d6c9;
+
+  border-radius: 10px;
+
+  padding: 15px 18px;
+
+  margin-bottom: 12px;
+
+}
+
+
+.review small {
+
+  color: #777;
+
+  margin-left: 5px;
+
+}
+
+
+.review p {
+
+  margin-bottom: 0;
+
+  line-height: 1.6;
+
+}
+
+
+/* =========================================================
+   LOGIN MESSAGE
+   ========================================================= */
+
+.login-review-message {
+
+  background: #fff8df;
+
+  border-left: 5px solid #d99a00;
+
+  padding: 15px 20px;
+
+  border-radius: 8px;
+
+}
+
+
+/* =========================================================
+   MOBILE
+   ========================================================= */
+
+@media (max-width: 800px) {
+
+  .details {
+
+    grid-template-columns: 1fr;
+
+    gap: 25px;
+
+  }
+
+
+  .movie-detail-placeholder {
+
+    height: 300px;
+
+  }
+
+
+  .movie-detail-letter {
+
+    width: 110px;
+
+    height: 110px;
+
+    font-size: 60px;
+
+  }
+
+
+  .movie-actions {
+
+    flex-direction: column;
+
+  }
+
+
+  .movie-actions .btn {
+
+    width: 100%;
+
+    text-align: center;
+
+  }
+
+}
+
+</style>
+
+
+</body>
+
+</html>
